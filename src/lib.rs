@@ -24,3 +24,6 @@ pub mod ser;
 pub mod parse;
 #[cfg(not(feature = "unstable"))]
 mod parse;
+
+#[cfg(feature = "data")]
+pub mod data;

@@ -3,12 +3,14 @@
 //! ## Implementations
 //! -  [`core::fmt::Display`] will output valid EDN for any Edn object
 //! -  [`TryFrom`]<[`parse::Node`]> implemented for [`Edn`] will convert the Node into an Edn
+//! -  [`ReaderTrait`] blanket-implemented for all closures that implement `FnMut(Node) -> Result<Edn, Error>`
 //!
 //! ## Differences from Clojure
 //! -  Escape characters are not escaped.
 
 use alloc::boxed::Box;
 use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt;
 
@@ -43,6 +45,8 @@ pub enum Edn<'e> {
   Char(char),
   Bool(bool),
   Nil,
+  #[cfg(feature = "data")]
+  Data(crate::data::Datum),
 }
 
 impl<'e> TryFrom<parse::Node<'e>> for Edn<'e> {
@@ -314,6 +318,107 @@ impl fmt::Display for Edn<'_> {
         write!(f, "{c}")
       }
       Self::Nil => write!(f, "nil"),
+      #[cfg(feature = "data")]
+      Self::Data(d) => write!(f, "{d}"),
     }
+  }
+}
+
+/// Trait for a handler that gets attached to a reader via [`Reader::add_reader`]
+pub trait ReaderTrait: FnMut(parse::Node<'_>) -> Result<Edn<'_>, error::Error> {}
+
+impl<F> ReaderTrait for F where F: FnMut(parse::Node<'_>) -> Result<Edn<'_>, error::Error> {}
+
+/// Maintains a map of [readers](ReaderTrait) while reading EDN from a string or [`Node`][Node]
+///
+/// [Node]: parse::Node
+#[derive(Default)]
+pub struct Reader(BTreeMap<String, Box<dyn ReaderTrait>>);
+
+impl Reader {
+  pub fn new() -> Self {
+    Self(BTreeMap::new())
+  }
+
+  /// Add an associated reader to convert a `Node` to an `Edn` when the tag `tag` is encountered
+  pub fn add_reader<F>(&mut self, tag: &str, reader: F)
+  where
+    F: ReaderTrait + 'static,
+  {
+    self.0.insert(tag.to_string(), Box::new(reader));
+  }
+
+  /// Reads one EDN from the &str, invoking the attached readers in-case of any tagged elements
+  ///
+  /// # Errors
+  ///
+  /// See [`crate::error::Error`].
+  pub fn read_string<'e>(&mut self, edn: &'e str) -> Result<Edn<'e>, error::Error> {
+    let mut source_reader = parse::SourceReader::new(edn);
+    let parsed = parse::parse(&mut source_reader)?;
+    self.read_node(parsed)
+  }
+
+  /// Converts a [`Node`](parse::Node) to an EDN, invoking the attached readers in-case of any
+  /// [`Tagged`](parse::NodeKind::Tagged) forms
+  ///
+  /// # Errors
+  ///
+  /// See [`crate::error::Error`].
+  pub fn read_node<'e>(
+    &mut self,
+    parse::Node { kind: value, span, .. }: parse::Node<'e>,
+  ) -> Result<Edn<'e>, error::Error> {
+    use error::{Code, Error, Result};
+    use parse::NodeKind;
+
+    Ok(match value {
+      NodeKind::Vector(items, _) => {
+        Edn::Vector(items.into_iter().map(|n| self.read_node(n)).collect::<Result<_>>()?)
+      }
+      NodeKind::Set(items, _) => {
+        let mut set = BTreeSet::new();
+        for node in items {
+          let position = node.span().1;
+          if !set.insert(self.read_node(node)?) {
+            return Err(Error::from_position(Code::SetDuplicateKey, position));
+          }
+        }
+        Edn::Set(set)
+      }
+      NodeKind::Map(entries, _) => {
+        let mut map = BTreeMap::new();
+        for (key, value) in entries {
+          let position = value.span().1;
+          if map.insert(self.read_node(key)?, self.read_node(value)?).is_some() {
+            return Err(Error::from_position(Code::HashMapDuplicateKey, position));
+          }
+        }
+        Edn::Map(map)
+      }
+      NodeKind::List(items, _) => {
+        Edn::List(items.into_iter().map(|n| self.read_node(n)).collect::<Result<_>>()?)
+      }
+      NodeKind::Key(key) => Edn::Key(key),
+      NodeKind::Symbol(symbol) => Edn::Symbol(symbol),
+      NodeKind::Str(str) => Edn::Str(str),
+      NodeKind::Int(int) => Edn::Int(int),
+      NodeKind::Tagged(tag, node) => {
+        let Some(handler) = self.0.get_mut(tag) else {
+          return Err(Error::from_position(Code::InvalidChar, span.0));
+        };
+        return handler(*node);
+      }
+      #[cfg(feature = "floats")]
+      NodeKind::Double(double) => Edn::Double(double),
+      NodeKind::Rational(rational) => Edn::Rational(rational),
+      #[cfg(feature = "arbitrary-nums")]
+      NodeKind::BigInt(big_int) => Edn::BigInt(big_int),
+      #[cfg(feature = "arbitrary-nums")]
+      NodeKind::BigDec(big_dec) => Edn::BigDec(big_dec),
+      NodeKind::Char(ch) => Edn::Char(ch),
+      NodeKind::Bool(bool) => Edn::Bool(bool),
+      NodeKind::Nil => Edn::Nil,
+    })
   }
 }

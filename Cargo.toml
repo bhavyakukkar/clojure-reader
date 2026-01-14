@@ -33,6 +33,7 @@ default = ["floats", "std" ]
 floats = ["ordered-float"]
 full = ["default", "arbitrary-nums", "derive"]
 derive = ["serde"]
+data = ["unstable"]
 std = []
 unstable = []
 
@@ -48,3 +49,7 @@ serde_derive = "^1.0"
 [[example]]
 name = "serde"
 required-features = ["derive"]
+
+[[example]]
+name = "data"
+required-features = ["data"]
