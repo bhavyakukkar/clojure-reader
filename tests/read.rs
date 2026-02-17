@@ -247,7 +247,7 @@ fn tagged() {
   );
 
   assert_eq!(
-    edn::read_string("#foo #bar #ニャンキャット {:baz #42 \"wut\"}").unwrap(),
+    edn::read_string("#foo #bar #ニャンキャット {:baz #forty-two \"wut\"}").unwrap(),
     Edn::Tagged(
       "foo",
       Box::new(Edn::Tagged(
@@ -256,7 +256,7 @@ fn tagged() {
           "ニャンキャット",
           Box::new(Edn::Map(BTreeMap::from([(
             Edn::Key("baz"),
-            Edn::Tagged("42", Box::new(Edn::Str("wut")))
+            Edn::Tagged("forty-two", Box::new(Edn::Str("wut")))
           )])))
         ))
       ))

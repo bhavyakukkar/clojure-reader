@@ -102,6 +102,19 @@ fn parse_tag_no_end() {
 }
 
 #[test]
+fn parse_no_tag() {
+  assert_eq!(
+    err_as_string(r"#42"),
+    "EdnError { code: InvalidTag, line: Some(1), column: Some(2), ptr: Some(1) }"
+  );
+
+  assert_eq!(
+    err_as_string(r"#[42]"),
+    "EdnError { code: InvalidTag, line: Some(1), column: Some(2), ptr: Some(1) }"
+  );
+}
+
+#[test]
 fn parse_symbol_with_quotes() {
   assert_eq!(
     err_as_string(r#"[thingy" c]"#),

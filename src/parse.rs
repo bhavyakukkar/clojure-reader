@@ -105,6 +105,14 @@ impl<'e> Walker<'e> {
   fn slurp_tag(&mut self) -> Result<&'e str, Error> {
     self.nibble_whitespace();
     let starting_ptr = self.ptr;
+    if self.peek_next().is_some_and(|c| DELIMITERS.contains(&c) || c.is_numeric()) {
+      return Err(Error {
+        code: Code::InvalidTag,
+        column: Some(self.column),
+        line: Some(self.line),
+        ptr: Some(self.ptr),
+      });
+    }
 
     loop {
       if let Some(c) = self.peek_next() {

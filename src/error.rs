@@ -27,6 +27,8 @@ pub enum Code {
   InvalidRadix(Option<u8>),
   UnexpectedEOF,
   UnmatchedDelimiter(char),
+  /// Tag must be a symbol
+  InvalidTag,
 
   /// Feature errors
   NoFloatFeature,
