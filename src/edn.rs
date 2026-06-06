@@ -22,6 +22,7 @@ use ordered_float::OrderedFloat;
 
 use crate::{error, parse};
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize), derive(serde::Deserialize))]
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 #[non_exhaustive]
 pub enum Edn<'e> {

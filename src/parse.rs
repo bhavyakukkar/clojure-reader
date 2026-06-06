@@ -21,6 +21,7 @@ use ordered_float::OrderedFloat;
 ///
 /// **NOTE:** The vector of items in [`NodeKind::Set`] may contain duplicate items.
 /// **NOTE:** The vector of entries in [`NodeKind::Map`] may contain duplicate keys.
+#[cfg_attr(feature = "serde", derive(serde::Serialize), derive(serde::Deserialize))]
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
 #[non_exhaustive]
 pub enum NodeKind<'e> {
@@ -59,14 +60,17 @@ pub enum NodeKind<'e> {
 }
 
 /// A **discarded** form containing the node that was discarded
+#[cfg_attr(feature = "serde", derive(serde::Serialize), derive(serde::Deserialize))]
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Discard<'e>(pub Node<'e>, pub Span);
+pub struct Discard<'e>(#[cfg_attr(feature = "serde", serde(borrow))] pub Node<'e>, pub Span);
 
 /// Concrete EDN syntax tree.
 ///
 /// Parse one with [`parse`], then convert it to an [`Edn`] with [`Edn::try_from`].
+#[cfg_attr(feature = "serde", derive(serde::Serialize), derive(serde::Deserialize))]
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Node<'e> {
+  #[cfg_attr(feature = "serde", serde(borrow))]
   pub kind: NodeKind<'e>,
   pub span: Span,
   pub leading_discards: Vec<Discard<'e>>,
@@ -147,6 +151,7 @@ pub fn parse_as_edn(edn: &str) -> Result<(Edn<'_>, &str), Error> {
 
 const DELIMITERS: [char; 8] = [',', ']', '}', ')', ';', '(', '[', '{'];
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize), derive(serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Position {
   pub line: usize,
@@ -160,6 +165,7 @@ impl Default for Position {
   }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize), derive(serde::Deserialize))]
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Span(pub Position, pub Position);
 
