@@ -21,7 +21,12 @@ use ordered_float::OrderedFloat;
 ///
 /// **NOTE:** The vector of items in [`NodeKind::Set`] may contain duplicate items.
 /// **NOTE:** The vector of entries in [`NodeKind::Map`] may contain duplicate keys.
-#[cfg_attr(feature = "serde", derive(serde::Serialize), derive(serde::Deserialize))]
+#[cfg_attr(
+  feature = "serde",
+  derive(serde::Serialize),
+  derive(serde::Deserialize),
+  serde(tag = "kind", content = "contents")
+)]
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
 #[non_exhaustive]
 pub enum NodeKind<'e> {
